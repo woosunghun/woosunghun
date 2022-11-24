@@ -20,25 +20,38 @@ from fancyimpute import KNN, MatrixFactorization
 
 #Data loading and Nan imputation by KNN 
 #년도별로 Clustering 수행, NAN값은 해당 data가 속한 군집중에서 거리가 가장 가까운 값으로 대체한다.
-all_data = pd.DataFrame()
+all_ = pd.DataFrame()
 for i in ['2018', '2019', '2020', '2021']:
-    ok = pd.read_pickle(f'./data/OK_{i}.pkl')
+
     ng = pd.read_pickle(f'./data/NG_{i}.pkl')
     ok['OK/NG'] = 0
     ng['OK/NG'] = 1
-    total = pd.concat([ok,ng])
+    all_data = pd.concat([ok,ng])
+    all_data = all_data[[all_data.columns[-1]]+ list(all_data.columns[:-1])]
+
+    # 추가 Feature
+    all_data['이자보상배율'] = all_data['영업이익（손실）'] / (all_data['금융비용대부채비율(%)'] * all_data['부  채  총  계'])
+    all_data['매출액대비자산'] = (all_data['매출채권'] + all_data['재고자산']) / all_data['매출액'] * 100
+    all_data['비유동장기적합률'] = all_data['비유동자산'] / (all_data['자기자본비율(%)'] * all_data['자본총계'] / 100 + all_data['비유동부채']) * 100
+    all_data['자기자본순이익률'] = all_data['당기순이익(손실)'] / (all_data['자기자본비율(%)'] * all_data['자산총계'] / 100) * 100
+    all_data['유동비율'] = all_data['유동자산'] / all_data['유동부채'] * 100
+    all_data['총자본순이익률'] = all_data['당기순이익(손실)'] / all_data['자산총계'] * 100
+    all_data['금융비용대총자산'] = all_data['금융비용대부채비율(%)'] * all_data['부  채  총  계'] / all_data['자산총계']
+    all_data['당좌비율'] = (all_data['유동자산'] - all_data['재고자산']) / all_data['유동부채'] * 100
+    
     # categorical variable
-    total_cate = total[total.columns[[i for i in range(-1,34)]]]
+    all_cate = all_data[all_data.columns[:35]]
     # numerical variable
-    total_num = total[total.columns[34:-1]]
+    all_num = all_data[all_data.columns[35:]]
     
     #numerical variable의 NAN 값에대하여 KNN imputation 시행
-    total_num_filled_KNN = pd.DataFrame(KNN(k=5).fit_transform(total_num))
-    total_num_filled_KNN.columns = total_num.columns
-    total_filled_KNN = pd.concat([total_cate.reset_index(drop=True), total_num_filled_KNN.reset_index(drop=True)], axis = 1)
+    all_num_filled_KNN = pd.DataFrame(KNN(k=5).fit_transform(all_num))
+    all_num_filled_KNN.columns = all_num.columns
+    all_filled_KNN = pd.concat([all_cate.reset_index(drop=True), all_num_filled_KNN.reset_index(drop=True)], axis = 1)
     
     # data merge
-    all_data = pd.concat([all_data, total_filled_KNN])
+    all_ = pd.concat([all_, all_filled_KNN])
+all_data = all_
     
 all_data = all_data.reset_index(drop=True)
 
